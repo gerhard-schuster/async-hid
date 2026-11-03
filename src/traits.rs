@@ -24,8 +24,10 @@ pub trait AsyncHidWrite {
 pub trait AsyncHidFeatureHandle {
     /// Read a feature report from a HID device
     ///
-    /// The submitted buffer must be big enough to contain the entire report or the report will be truncated
-    /// If the device uses numbered report the first byte will contain the report id
+    /// The first byte must be the id of the requested report, or 0x0 if the device does not use numbered reports.
+    /// The report is returned with that id in the first byte, and the returned length includes it.
+    /// The submitted buffer must be big enough to contain the entire report or the report will be truncated.
+    /// On FreeBSD with USB devices it must have exactly the length of the report.
     fn read_feature_report<'a>(&'a mut self, buf: &'a mut [u8]) -> impl Future<Output = HidResult<usize>> + Send + 'a;
 
     /// Write a feature report to a HID device
