@@ -163,11 +163,13 @@ fn get_device_info_raw(path: PathBuf) -> HidResult<Vec<DeviceInfo>> {
         .and_then(parse_hid_vid_pid)
         .ok_or(HidError::message("Can't find hid ids"))?;
 
-    let name = read_property(&properties, "HID_NAME")
-        .ok_or(HidError::message("Can't find hid name"))?
-        .to_string();
-
     let usb_device = usb_device_dir(&path, bus);
+    // usbhid builds HID_NAME from manufacturer and product; the other backends report the product.
+    let name = usb_device
+        .as_deref()
+        .and_then(|dir| read_attribute(dir, "product"))
+        .or_else(|| read_property(&properties, "HID_NAME").map(str::to_string))
+        .ok_or(HidError::message("Can't find hid name"))?;
     let manufacturer = usb_device
         .as_deref()
         .and_then(|dir| read_attribute(dir, "manufacturer"));
