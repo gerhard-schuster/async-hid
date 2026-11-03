@@ -313,7 +313,8 @@ impl DeviceReadWriter {
         .await?;
 
         target[..report.len()].copy_from_slice(&report);
-        Ok(report.len())
+        // Count the leading 0x00 of a report without ID, as the other backends do.
+        Ok(report.len() + usize::from(report_id == 0))
     }
 }
 
