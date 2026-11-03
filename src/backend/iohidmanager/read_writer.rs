@@ -283,7 +283,6 @@ impl DeviceReadWriter {
             _ => panic!("Invalid read report type"),
         }
 
-        let _ = self.read_state.as_ref().expect("Device is not readable");
         let report_id = buf[0];
         let target = if report_id == 0x0 { &mut buf[1..] } else { buf };
         let capacity = target.len();
