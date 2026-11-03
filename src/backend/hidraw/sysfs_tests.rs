@@ -113,3 +113,22 @@ fn the_manufacturer_comes_from_the_usb_device_only() {
     let devices = get_device_info_raw(node).expect("Failed to read the device");
     assert_eq!(devices[0].manufacturer.as_deref(), Some("Logitech"));
 }
+
+#[test]
+fn the_name_is_the_product_string_of_the_usb_device() {
+    let root = TempDir::new("product");
+    let interface = root.0.join("usb1/1-1/1-1:1.0");
+    fake_hidraw_node(&interface, MOUSE);
+    let node = interface.join("device/hidraw/hidraw0");
+    create_dir_all(&node).expect("Failed to create the node directory");
+    symlink(interface.join("device"), node.join("device")).expect("Failed to link the HID device");
+    write(root.0.join("usb1/1-1/idVendor"), "046d\n").expect("Failed to write idVendor");
+
+    assert_eq!(
+        get_device_info_raw(node.clone()).expect("Failed to read the device")[0].name,
+        "Test Device"
+    );
+
+    write(root.0.join("usb1/1-1/product"), "USB Receiver\n").expect("Failed to write the product");
+    assert_eq!(get_device_info_raw(node).expect("Failed to read the device")[0].name, "USB Receiver");
+}
