@@ -159,7 +159,7 @@ fn get_device_info_raw(path: PathBuf) -> HidResult<Vec<DeviceInfo>> {
         err => err.into()
     })?;
 
-    let (_bus, vendor_id, product_id) = read_property(&properties, "HID_ID")
+    let (bus, vendor_id, product_id) = read_property(&properties, "HID_ID")
         .and_then(parse_hid_vid_pid)
         .ok_or(HidError::message("Can't find hid ids"))?;
 
@@ -167,7 +167,10 @@ fn get_device_info_raw(path: PathBuf) -> HidResult<Vec<DeviceInfo>> {
         .ok_or(HidError::message("Can't find hid name"))?
         .to_string();
 
-    let manufacturer = find_manufacturer_string(&path);
+    let usb_device = usb_device_dir(&path, bus);
+    let manufacturer = usb_device
+        .as_deref()
+        .and_then(|dir| read_attribute(dir, "manufacturer"));
 
     let serial_number = read_property(&properties, "HID_UNIQ")
         .filter(|s| !s.is_empty())
@@ -235,21 +238,21 @@ fn parse_hid_vid_pid(s: &str) -> Option<(u16, u16, u16)> {
     Some((devtype, vendor, product))
 }
 
-fn find_manufacturer_string(hidraw_path: &Path) -> Option<String> {
-    let mut current = hidraw_path.join("device");
-    loop {
-        let mfr_path = current.join("manufacturer");
-        if let Ok(mfr) = read_to_string(&mfr_path) {
-            let trimmed = mfr.trim().to_string();
-            if !trimmed.is_empty() {
-                return Some(trimmed);
-            }
-        }
-        current = current.parent()?.to_path_buf();
-        if current == Path::new("/sys") || current == Path::new("/") {
-            return None;
-        }
+/// The first USB device above a hidraw node, as udev's parent lookup finds it.
+fn usb_device_dir(hidraw_path: &Path, bus: u16) -> Option<PathBuf> {
+    const BUS_USB: u16 = 0x03;
+    ensure!(bus == BUS_USB);
+    let mut dir = hidraw_path.join("device").canonicalize().ok()?;
+    while !dir.join("idVendor").exists() {
+        dir = dir.parent()?.to_path_buf();
     }
+    Some(dir)
+}
+
+fn read_attribute(dir: &Path, name: &str) -> Option<String> {
+    let value = read_to_string(dir.join(name)).ok()?;
+    let value = value.trim();
+    (!value.is_empty()).then(|| value.to_string())
 }
 
 /// The devices of a sysfs class directory such as /sys/class/hidraw.

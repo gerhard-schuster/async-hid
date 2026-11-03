@@ -92,3 +92,24 @@ fn a_device_without_a_readable_descriptor_is_still_reported() {
     assert_eq!(devices.len(), 1);
     assert_eq!((devices[0].usage_page, devices[0].usage_id), (0, 0));
 }
+
+#[test]
+fn the_manufacturer_comes_from_the_usb_device_only() {
+    let root = TempDir::new("manufacturer");
+    let interface = root.0.join("usb1/1-1/1-1:1.0");
+    fake_hidraw_node(&interface, MOUSE);
+    let node = interface.join("device/hidraw/hidraw0");
+    create_dir_all(&node).expect("Failed to create the node directory");
+    symlink(interface.join("device"), node.join("device")).expect("Failed to link the HID device");
+    write(root.0.join("usb1/1-1/idVendor"), "046d\n").expect("Failed to write idVendor");
+    write(root.0.join("usb1/manufacturer"), "Linux xhci-hcd\n").expect("Failed to write the hub manufacturer");
+
+    assert_eq!(
+        get_device_info_raw(node.clone()).expect("Failed to read the device")[0].manufacturer,
+        None
+    );
+
+    write(root.0.join("usb1/1-1/manufacturer"), "Logitech\n").expect("Failed to write the manufacturer");
+    let devices = get_device_info_raw(node).expect("Failed to read the device");
+    assert_eq!(devices[0].manufacturer.as_deref(), Some("Logitech"));
+}
