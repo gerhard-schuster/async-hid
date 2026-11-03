@@ -15,7 +15,7 @@ use futures_lite::stream::{iter, unfold, Boxed};
 use futures_lite::StreamExt;
 use log::{debug, trace, warn};
 use nix::fcntl::OFlag;
-use nix::libc::EIO;
+use nix::libc::{EIO, ENODEV};
 use nix::sys::socket::{bind, recvfrom, socket, AddressFamily, NetlinkAddr, SockFlag, SockProtocol, SockType};
 use nix::unistd::{access, read, write, AccessFlags};
 
@@ -275,7 +275,7 @@ impl AsyncHidRead for HidDevice {
         read_with(&self.0, |fd| read(fd, buf).map_err(std::io::Error::from))
             .await
             .map_err(|err| match err {
-                err if err.raw_os_error() == Some(EIO) => HidError::Disconnected,
+                err if matches!(err.raw_os_error(), Some(EIO | ENODEV)) => HidError::Disconnected,
                 err => err.into()
             })
     }
@@ -286,7 +286,7 @@ impl AsyncHidWrite for HidDevice {
         write_with(&self.0, |fd| write(fd, buf).map_err(std::io::Error::from))
             .await
             .map_err(|err| match err {
-                err if err.raw_os_error() == Some(EIO) => HidError::Disconnected,
+                err if matches!(err.raw_os_error(), Some(EIO | ENODEV)) => HidError::Disconnected,
                 err => err.into()
             })
             .map(|i| debug_assert_eq!(i, buf.len()))
@@ -305,7 +305,10 @@ impl AsyncHidFeatureHandle for HidDevice {
             unsafe { hidraw_ioc_get_feature(fd.as_raw_fd(), buf) }.map_err(std::io::Error::from)
         })
         .await
-        .map_err(|e| HidError::message(format!("ioctl(GET_FEATURE) error: {}", e)))?;
+        .map_err(|e| match e.raw_os_error() {
+            Some(ENODEV) => HidError::Disconnected,
+            _ => HidError::message(format!("ioctl(GET_FEATURE) error: {}", e))
+        })?;
 
         Ok(result as usize)
     }
@@ -322,7 +325,10 @@ impl AsyncHidFeatureHandle for HidDevice {
             unsafe { hidraw_ioc_set_feature(fd.as_raw_fd(), &mut data) }.map_err(std::io::Error::from)
         })
         .await
-        .map_err(|e| HidError::message(format!("ioctl(SET_FEATURE) error: {}", e)))?;
+        .map_err(|e| match e.raw_os_error() {
+            Some(ENODEV) => HidError::Disconnected,
+            _ => HidError::message(format!("ioctl(SET_FEATURE) error: {}", e))
+        })?;
 
         Ok(())
     }
