@@ -90,10 +90,7 @@ impl Backend for WinRtBackend {
         let DeviceId::UncPath(id) = id;
         let device = HidDevice::FromIdAsync(id, mode)?
             .await
-            .map_err(|err| match err {
-                e if e.code().is_ok() || e.code() == HRESULT::from_win32(ERROR_FILE_NOT_FOUND.0) => HidError::NotConnected,
-                e => e.into()
-            })?;
+            .map_err(open_error)?;
         let input = match read {
             true => Some(InputReceiver::new(self, id, device.clone())?),
             false => None
@@ -105,11 +102,17 @@ impl Backend for WinRtBackend {
         let DeviceId::UncPath(id) = id;
         let device = HidDevice::FromIdAsync(id, FileAccessMode::ReadWrite)?
             .await
-            .map_err(|err| match err {
-                e if e.code().is_ok() || e.code() == HRESULT::from_win32(ERROR_FILE_NOT_FOUND.0) => HidError::NotConnected,
-                e => e.into()
-            })?;
+            .map_err(open_error)?;
         Ok(device)
+    }
+}
+
+fn open_error(err: windows::core::Error) -> HidError {
+    match err {
+        // FromIdAsync returns null for a present device it can not open.
+        e if e.code().is_ok() => HidError::message("The device can not be opened"),
+        e if e.code() == HRESULT::from_win32(ERROR_FILE_NOT_FOUND.0) => HidError::NotConnected,
+        e => e.into()
     }
 }
 
