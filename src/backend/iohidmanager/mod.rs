@@ -74,13 +74,14 @@ impl Drop for IoHidManagerBackendInner {
     fn drop(&mut self) {
         unsafe {
             let once = Arc::new(Once::new());
-            let block = RcBlock::new({
+            let this: &Self = self;
+            // On the manager's queue, so the cancel can not race its hot-plug callbacks.
+            DISPATCH_QUEUE.exec_sync(|| {
                 let once = once.clone();
-                move || once.call_once(|| trace!("Finished canceling manager"))
+                let block = RcBlock::new(move || once.call_once(|| trace!("Finished canceling manager")));
+                this.manager.set_cancel_handler(RcBlock::as_ptr(&block));
+                this.manager.cancel();
             });
-
-            self.manager.set_cancel_handler(RcBlock::as_ptr(&block));
-            self.manager.cancel();
             trace!("Waiting for manager cancel to finish");
             once.wait();
             trace!("Resuming destructor of manager");
