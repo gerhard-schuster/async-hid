@@ -1,4 +1,3 @@
-mod descriptor;
 mod ioctl;
 #[cfg(test)]
 mod sysfs_tests;
@@ -20,7 +19,7 @@ use nix::sys::socket::{bind, recvfrom, socket, AddressFamily, NetlinkAddr, SockF
 use nix::unistd::{access, read, write, AccessFlags};
 
 use crate::backend::hidraw::async_api::{read_with, write_with, AsyncFd};
-use crate::backend::hidraw::descriptor::HidrawReportDescriptor;
+use crate::backend::descriptor::HidrawReportDescriptor;
 use crate::backend::hidraw::ioctl::{hidraw_ioc_get_feature, hidraw_ioc_set_feature, hidraw_ioc_grdescsize};
 use crate::backend::hidraw::uevent::{Action, UEvent};
 use crate::backend::{Backend, DeviceInfoStream};
@@ -183,7 +182,9 @@ fn get_device_info_raw(path: PathBuf) -> HidResult<Vec<DeviceInfo>> {
         serial_number
     };
 
-    let results: Vec<DeviceInfo> = HidrawReportDescriptor::from_syspath(&path)
+    let results: Vec<DeviceInfo> = std::fs::read(path.join("device/report_descriptor"))
+        .map_err(HidError::from)
+        .and_then(|bytes| HidrawReportDescriptor::from_slice(&bytes))
         .map(|descriptor| {
             descriptor
                 .usages()
