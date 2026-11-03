@@ -8,6 +8,9 @@ use crate::device_info::DeviceId;
 use crate::traits::{AsyncHidFeatureHandle, AsyncHidRead, AsyncHidWrite};
 use crate::{Access, DeviceEvent, DeviceInfo, HidResult};
 
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+mod descriptor;
+
 pub type DeviceInfoStream = Boxed<HidResult<DeviceInfo>>;
 pub trait Backend: Sized + Default {
     type Reader: AsyncHidRead + Send + Sync;

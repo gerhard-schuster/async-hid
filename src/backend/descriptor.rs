@@ -1,7 +1,3 @@
-// Copied from src/backend/hidraw/descriptor.rs sans the sysfs from_syspath
-// method (FreeBSD gets the raw bytes via ioctl HIDIOCGRDESC instead).
-// Follow-up: hoist into a shared module.
-
 use std::io::{Cursor, Read, Seek, SeekFrom};
 
 use crate::HidResult;

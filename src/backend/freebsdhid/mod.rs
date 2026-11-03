@@ -11,7 +11,6 @@
 // the EVFILT_READ kqueue filter, which constrains the tokio path; see the
 // `async_api` module at the bottom of this file.
 
-mod descriptor;
 mod devd;
 mod ioctl;
 
@@ -33,7 +32,7 @@ use nix::unistd::{read, write};
 use crate::backend::freebsdhid::devd::{parse_line, ParsedEvent};
 
 use crate::backend::freebsdhid::async_api::{read_with, write_with, AsyncFd};
-use crate::backend::freebsdhid::descriptor::HidrawReportDescriptor;
+use crate::backend::descriptor::HidrawReportDescriptor;
 use crate::backend::freebsdhid::ioctl::{
     cstr_from_bytes, hidiocg_rdesc, hidiocg_rdescsize, hidraw_get_deviceinfo, hidraw_get_feature,
     hidraw_set_feature, HidrawDeviceInfo, HidrawReportDescriptor as HidrawReportDescriptorRaw,
