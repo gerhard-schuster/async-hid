@@ -133,7 +133,7 @@ impl Backend for IoHidManagerBackend {
 
     async fn open_feature_handle(&self, id: &DeviceId, access: Option<Access>) -> HidResult<Self::FeatureHandle> {
         let device = get_device(id)?;
-        let rw = DeviceReadWriter::new(device, &DISPATCH_QUEUE, true, true, open_options(access))?;
+        let rw = DeviceReadWriter::new(device, &DISPATCH_QUEUE, false, true, open_options(access))?;
         Ok(FeatureReadWriter::new(rw))
     }
 }
