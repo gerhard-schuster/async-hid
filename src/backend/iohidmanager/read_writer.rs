@@ -287,6 +287,8 @@ impl DeviceReadWriter {
         let report_id = buf[0];
         let target = if report_id == 0x0 { &mut buf[1..] } else { buf };
         let capacity = target.len();
+        // IOKit answers a zero length with the code that means disconnected.
+        ensure!(capacity > 0, HidError::message("Buffer has no room for the report"));
         let request = ReportRequest {
             report_type,
             report_id,
@@ -296,8 +298,7 @@ impl DeviceReadWriter {
         let device = SendDevice(self.device.clone());
         let report = read_resumable(pending_read, &self.report_queue, request, move || {
             let device = device;
-            // Never empty, an empty Vec would hand IOKit a dangling pointer.
-            let mut report = vec![0u8; capacity.max(1)];
+            let mut report = vec![0u8; capacity];
             let mut length = capacity as CFIndex;
             let ret = unsafe {
                 device.0.report(
