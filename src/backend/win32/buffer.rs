@@ -331,6 +331,8 @@ impl IoBuffer<Feature> {
                 true => match self.get_result()? {
                     Some(size) => {
                         trace!("Completed feature read operation (retrieved {} bytes)", size);
+                        // Without report IDs the byte count leaves out the leading 0x00.
+                        let size = if report_id == 0 { (size + 1).min(self.buffer.len()) } else { size };
                         let data = &self.buffer[..size];
                         let copy_len = std::cmp::min(data.len(), buf.len());
                         buf[..copy_len].copy_from_slice(&data[..copy_len]);
